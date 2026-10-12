@@ -156,13 +156,24 @@
       </div>
     </div>
 
-    <div class="controls">
-      <button id="captureButton" class="capture"
-        aria-label="Ambil gambar" onclick="capturePhoto()"></button>
-    </div>
+  <div class="controls">
+    <button id="switchCameraButton" class="secondary"
+      type="button" onclick="switchCamera()">
+      🔄 Tukar Kamera
+    </button>
+
+    <button id="captureButton" class="capture"
+      aria-label="Ambil gambar" onclick="capturePhoto()"></button>
+  </div>
 
     <button id="startButton" class="primary" onclick="startCamera()">
       Buka Kamera
+    </button>
+    
+    <button id="galleryButton" class="secondary primary"
+      type="button"
+      onclick="window.open('https://URL-WEB-APP-ANDA/exec?page=gallery', '_blank')">
+      🖼️ Lihat Gallery
     </button>
 
     <button id="retakeButton" class="secondary primary"
@@ -202,6 +213,7 @@
     let stream = null;
     let photoData = null;
     let waitingForUpload = false;
+    let currentCamera = 'environment';
 
     document.getElementById('welcome').textContent =
       senderName ? 'Hai haii, ' + senderName + '!' :
@@ -230,7 +242,7 @@
         stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
           video: {
-            facingMode: { ideal: 'environment' },
+           facingMode: { ideal: currentCamera },
             width: { ideal: 1600 },
             height: { ideal: 1200 }
           }
@@ -244,6 +256,7 @@
         cameraMessage.style.display = 'none';
         captureButton.style.display = 'block';
         startButton.style.display = 'none';
+        document.getElementById('switchCameraButton').style.display = 'inline-block';
 
         setStatus('Kamera readyy. Tekan bulat tu untuk bergambar, senyumm.');
       } catch (error) {
@@ -261,6 +274,20 @@
           setStatus('Ralat kamera: ' + error.name);
         }
       }
+    }
+
+    async function switchCamera() {
+      if (waitingForUpload || photoData) return;
+
+      currentCamera =
+      currentCamera === 'environment' ? 'user' : 'environment';
+  
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+      }
+
+      await startCamera();
     }
 
     function capturePhoto() {
