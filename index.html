@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Photo Moment</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #f5f7fb;
+      color: #172033;
+      font-family: Arial, sans-serif;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 480px;
+      min-height: 100vh;
+      margin: auto;
+      padding: 22px 18px;
+    }
+
+    .logo {
+      height: 55px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+      color: #64748b;
+      font-size: 14px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 25px;
+      margin: 8px 0;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #64748b;
+      margin-bottom: 22px;
+    }
+
+    .camera-box {
+      position: relative;
+      overflow: hidden;
+      background: #111827;
+      border-radius: 22px;
+      aspect-ratio: 3 / 4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    video, #preview {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    #preview {
+      display: none;
+    }
+
+    #cameraMessage {
+      position: absolute;
+      color: white;
+      padding: 22px;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin: 18px 0;
+    }
+
+    button {
+      border: 0;
+      border-radius: 15px;
+      padding: 15px 20px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .primary {
+      background: #1e3a8a;
+      color: white;
+      width: 100%;
+    }
+
+    .capture {
+      width: 70px;
+      height: 70px;
+      border: 5px solid white;
+      border-radius: 50%;
+      background: #1e3a8a;
+      box-shadow: 0 0 0 2px #1e3a8a;
+      padding: 0;
+    }
+
+    .secondary {
+      background: #e5e7eb;
+      color: #172033;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 82px;
+      resize: vertical;
+      padding: 13px;
+      border: 1px solid #d1d5db;
+      border-radius: 13px;
+      font: inherit;
+      margin-bottom: 14px;
+    }
+
+    #commentSection, #retakeButton {
+      display: none;
+    }
+
+    #status {
+      text-align: center;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #475569;
+      margin-top: 14px;
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: wait;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="app">
+    <div class="logo">BANDANA CAM</div>
+
+    <h1>Photo Moment 📸</h1>
+    <p class="subtitle" id="welcome">Sediakan kamera anda.</p>
+
+    <div class="camera-box">
+      <video id="video" autoplay playsinline muted></video>
+      <img id="preview" alt="Gambar yang diambil">
+      <div id="cameraMessage">
+        Kamera akan ada kat sini.
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="captureButton" class="capture"
+        aria-label="Ambil gambar" onclick="capturePhoto()"></button>
+    </div>
+
+    <button id="startButton" class="primary" onclick="startCamera()">
+      Buka Kamera
+    </button>
+
+    <button id="retakeButton" class="secondary primary"
+      onclick="retakePhoto()">
+      Retake
+    </button>
+
+    <section id="commentSection">
+      <p><strong>Komen la sikit..</strong></p>
+      <textarea id="comment"
+        maxlength="160"
+        placeholder="Tulis sesuatu tentang gambar ini..."></textarea>
+
+      <button id="sendButton" class="primary" onclick="sendPhoto()">
+        ➤ Hantar 
+      </button>
+    </section>
+
+    <p id="status" role="status">Tengah loading sat...</p>
+  </main>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const senderName = (params.get('name') || '').trim();
+
+    const video = document.getElementById('video');
+    const preview = document.getElementById('preview');
+    const cameraMessage = document.getElementById('cameraMessage');
+    const captureButton = document.getElementById('captureButton');
+    const startButton = document.getElementById('startButton');
+    const retakeButton = document.getElementById('retakeButton');
+    const commentSection = document.getElementById('commentSection');
+    const commentInput = document.getElementById('comment');
+    const sendButton = document.getElementById('sendButton');
+    const statusBox = document.getElementById('status');
+
+    let stream = null;
+    let photoData = null;
+    let waitingForUpload = false;
+
+    document.getElementById('welcome').textContent =
+      senderName ? 'Hai haii, ' + senderName + '!' :
+      'Sila kembali dan letak nama duluu.';
+
+    function setStatus(message) {
+      statusBox.textContent = message;
+    }
+
+    async function startCamera() {
+      if (!senderName) {
+        setStatus('Nama tidak ditemui. Sila buka semula melalui halaman utama.');
+        return;
+      }
+
+      if (!navigator.mediaDevices ||
+          !navigator.mediaDevices.getUserMedia) {
+        setStatus('Kamera tidak disokong di sini. Buka pautan menggunakan pelayar yang terkini.');
+        return;
+      }
+
+      startButton.disabled = true;
+      setStatus('Tengah akses kamera jap...');
+
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1600 },
+            height: { ideal: 1200 }
+          }
+        });
+
+        video.srcObject = stream;
+        await video.play();
+
+        video.style.display = 'block';
+        preview.style.display = 'none';
+        cameraMessage.style.display = 'none';
+        captureButton.style.display = 'block';
+        startButton.style.display = 'none';
+
+        setStatus('Kamera readyy. Tekan bulat tu untuk bergambar, senyumm.');
+      } catch (error) {
+        startButton.disabled = false;
+        startButton.style.display = 'block';
+        cameraMessage.style.display = 'block';
+
+        if (error.name === 'NotAllowedError') {
+          cameraMessage.textContent =
+            'Kebenaran kamera tidak diberikan. Cuba cek permission dekat website setting.';
+          setStatus('Sila bagi akses kamera jika pop-up kebenaran dipaparkan.');
+        } else {
+          cameraMessage.textContent =
+            'Kamera takleh dibuka. Cuba tekan Buka Kamera.';
+          setStatus('Ralat kamera: ' + error.name);
+        }
+      }
+    }
+
+    function capturePhoto() {
+      if (!video.videoWidth || !stream) {
+        setStatus('Tunggu sampai kamera ready.');
+        return;
+      }
+
+      const canvas = document.createElement('canvas');
+      const maxWidth = 1600;
+      const scale = Math.min(1, maxWidth / video.videoWidth);
+
+      canvas.width = Math.round(video.videoWidth * scale);
+      canvas.height = Math.round(video.videoHeight * scale);
+
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      photoData = canvas.toDataURL('image/jpeg', 0.78);
+
+      preview.src = photoData;
+      preview.style.display = 'block';
+      video.style.display = 'none';
+      captureButton.style.display = 'none';
+      retakeButton.style.display = 'block';
+      commentSection.style.display = 'block';
+      commentInput.value = '';
+
+      setStatus('Gambar sudah diambil. Komen la sikett, kemudian hantar.');
+    }
+
+    function retakePhoto() {
+      if (waitingForUpload) return;
+
+      photoData = null;
+      preview.style.display = 'none';
+      video.style.display = 'block';
+      captureButton.style.display = 'block';
+      retakeButton.style.display = 'none';
+      commentSection.style.display = 'none';
+
+      setStatus('Ambil gambar apabila anda bersedia. Kasi pose paling gempak');
+    }
+
+    function sendPhoto() {
+      if (!photoData || waitingForUpload) return;
+
+      if (!window.opener || window.opener.closed) {
+        setStatus('Page utama tidak ditemui. Buka kamera melalui page utama gallery.');
+        return;
+      }
+
+      waitingForUpload = true;
+      sendButton.disabled = true;
+      setStatus('Tengah send gambar, sabo jap bey...');
+
+      window.opener.postMessage({
+        type: 'QR_GALLERY_UPLOAD',
+        senderName: senderName,
+        dataUrl: photoData,
+        comment: commentInput.value.trim()
+      }, '*');
+    }
+
+    window.addEventListener('message', function(event) {
+      if (event.source !== window.opener || !event.data) return;
+
+      if (event.data.type === 'QR_GALLERY_RESULT') {
+        waitingForUpload = false;
+        sendButton.disabled = false;
+
+        if (event.data.success) {
+          photoData = null;
+          commentInput.value = '';
+          commentSection.style.display = 'none';
+          retakeButton.style.display = 'none';
+          preview.style.display = 'none';
+          video.style.display = 'block';
+          captureButton.style.display = 'block';
+
+          setStatus('Gambar berjaya dihantar! Moleknya komee, boleh mengambil gambar seterusnya.');
+        } else {
+          setStatus(event.data.message || 'Gambar tidak berjaya dihantar. Cuba lagi.');
+        }
+      }
+    });
+
+    window.addEventListener('pagehide', function() {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    });
+
+    // Cuba buka kamera apabila halaman dibuka.
+    // Jika pelayar memerlukan sentuhan pengguna, tekan Buka Kamera.
+    startCamera();
+  </script>
+</body>
+</html>
