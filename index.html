@@ -62,8 +62,8 @@
       object-fit: cover;
     }
 
-    /* Betulkan paparan kiri-kanan kamera secara langsung. */
-    #video {
+    /* Cermin (mirror) hanya untuk kamera depan. Kamera belakang kekal normal. */
+    #video.mirrored {
       transform: scaleX(-1);
     }
 
@@ -272,6 +272,11 @@
     let photoData = null;
     let waitingForUpload = false;
     let currentCamera = 'environment';
+    let isMirrored = false;
+
+    // true  = gambar yang disimpan sama macam preview (cermin) untuk kamera depan
+    // false = gambar yang disimpan tidak dicermin (macam kamera biasa)
+    const MIRROR_SAVED_FRONT_PHOTO = true;
 
     document.getElementById('welcome').textContent =
       senderName ? 'Hai haii, ' + senderName + '!' :
@@ -308,6 +313,14 @@
 
         video.srcObject = stream;
         await video.play();
+
+        // Kesan kamera sebenar yang dibuka (bukan sekadar yang diminta).
+        // Webcam laptop biasanya tiada facingMode, jadi dianggap kamera depan.
+        const settings = stream.getVideoTracks()[0].getSettings();
+        isMirrored = settings.facingMode
+          ? settings.facingMode === 'user'
+          : true;
+        video.classList.toggle('mirrored', isMirrored);
 
         video.style.display = 'block';
         preview.style.display = 'none';
@@ -374,9 +387,11 @@ async function switchCamera() {
       canvas.height = Math.round(video.videoHeight * scale);
 
       const ctx = canvas.getContext('2d');
-      // Balikkan imej kiri-kanan supaya gambar yang disimpan juga betul.
-      ctx.translate(canvas.width, 0);
-      ctx.scale(-1, 1);
+      // Balikkan imej hanya untuk kamera depan, supaya sama dengan preview.
+      if (isMirrored && MIRROR_SAVED_FRONT_PHOTO) {
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+      }
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
       photoData = canvas.toDataURL('image/jpeg', 0.78);
