@@ -74,12 +74,50 @@
       line-height: 1.5;
     }
 
-    .controls {
-      display: flex;
-      justify-content: center;
-      gap: 12px;
-      margin: 18px 0;
-    }
+    
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 18px 0;
+  padding: 0 12px;
+}
+
+.icon-button {
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  flex: 0 0 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: #1e3a8a;
+  border-radius: 50%;
+}
+
+.icon-button svg {
+  width: 27px;
+  height: 27px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.capture {
+  width: 70px;
+  height: 70px;
+  flex: 0 0 70px;
+  border: 5px solid white;
+  border-radius: 50%;
+  background: #1e3a8a;
+  box-shadow: 0 0 0 2px #1e3a8a;
+  padding: 0;
+}
+
 
     button {
       border: 0;
@@ -94,16 +132,6 @@
       background: #1e3a8a;
       color: white;
       width: 100%;
-    }
-
-    .capture {
-      width: 70px;
-      height: 70px;
-      border: 5px solid white;
-      border-radius: 50%;
-      background: #1e3a8a;
-      box-shadow: 0 0 0 2px #1e3a8a;
-      padding: 0;
     }
 
     .secondary {
@@ -156,26 +184,51 @@
       </div>
     </div>
 
-  <div class="controls">
-    <button id="switchCameraButton" class="secondary"
-      type="button" onclick="switchCamera()">
-      🔄 Tukar Kamera
-    </button>
+  
+<div class="controls">
+  <!-- Gallery: empat petak kecil -->
+  <button id="galleryButton"
+    class="icon-button"
+    type="button"
+    aria-label="Lihat Gallery"
+    onclick="openGallery()">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="3" y="3" width="7" height="7" rx="1"/>
+      <rect x="14" y="3" width="7" height="7" rx="1"/>
+      <rect x="3" y="14" width="7" height="7" rx="1"/>
+      <rect x="14" y="14" width="7" height="7" rx="1"/>
+    </svg>
+  </button>
 
-    <button id="captureButton" class="capture"
-      aria-label="Ambil gambar" onclick="capturePhoto()"></button>
-  </div>
+  <!-- Butang kamera utama -->
+  <button id="captureButton"
+    class="capture"
+    type="button"
+    aria-label="Ambil gambar"
+    onclick="capturePhoto()">
+  </button>
+
+  <!-- Tukar kamera: simbol refresh -->
+  <button id="switchCameraButton"
+    class="icon-button"
+    type="button"
+    aria-label="Tukar kamera depan atau belakang"
+    onclick="switchCamera()">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M20 7v5h-5"/>
+      <path d="M4 17v-5h5"/>
+      <path d="M5.6 9A7 7 0 0 1 18 6.5L20 12"/>
+      <path d="M18.4 15A7 7 0 0 1 6 17.5L4 12"/>
+    </svg>
+  </button>
+</div>
+
 
     <button id="startButton" class="primary" onclick="startCamera()">
       Buka Kamera
     </button>
     
-    <button id="galleryButton" class="secondary primary"
-      type="button"
-      onclick="window.open('https://URL-WEB-APP-ANDA/exec?page=gallery', '_blank')">
-      🖼️ Lihat Gallery
-    </button>
-
+    
     <button id="retakeButton" class="secondary primary"
       onclick="retakePhoto()">
       Retake
@@ -242,7 +295,7 @@
         stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
           video: {
-           facingMode: { ideal: currentCamera },
+           facingMode: { exact: currentCamera },
             width: { ideal: 1600 },
             height: { ideal: 1200 }
           }
@@ -276,22 +329,34 @@
       }
     }
 
-    async function switchCamera() {
-      if (waitingForUpload || photoData) return;
+    
+async function switchCamera() {
+  if (waitingForUpload || photoData) return;
 
-      currentCamera =
-      currentCamera === 'environment' ? 'user' : 'environment';
-  
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        stream = null;
-      }
+  const nextCamera =
+    currentCamera === 'environment' ? 'user' : 'environment';
 
-      await startCamera();
-    }
+  if (stream) {
+    stream.getTracks().forEach(track => track.stop());
+    stream = null;
+  }
+
+  currentCamera = nextCamera;
+
+  await startCamera();
+}
+
+      
+  function openGallery() {
+   const galleryUrl =
+    'https://script.google.com/macros/s/AKfycbxy88O1sg0RndiNZsyEmrQ-IFzeqljy98huI0R88eBd4CiOlVcqgSBGoaLiwM_Zp4fu/exec?page=gallery';
+
+    window.open(galleryUrl, '_blank');
+  }
+
 
     function capturePhoto() {
-      if (!video.videoWidth || !stream) {
+     if (!video.videoWidth || !stream) {
         setStatus('Tunggu sampai kamera ready.');
         return;
       }
