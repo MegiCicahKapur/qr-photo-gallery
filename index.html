@@ -84,7 +84,10 @@
   padding: 0 12px;
 }
 
-.icon-button {
+.controls .icon-button {
+  appearance: none;
+  margin: 0;
+  min-width: 56px;
   width: 56px;
   height: 56px;
   padding: 0;
@@ -107,7 +110,10 @@
   stroke-linejoin: round;
 }
 
-.capture {
+.controls .capture {
+  appearance: none;
+  margin: 0;
+  min-width: 70px;
   width: 70px;
   height: 70px;
   flex: 0 0 70px;
@@ -295,7 +301,7 @@
         stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
           video: {
-           facingMode: { exact: currentCamera },
+           facingMode: { ideal: currentCamera },
             width: { ideal: 1600 },
             height: { ideal: 1200 }
           }
@@ -333,6 +339,7 @@
 async function switchCamera() {
   if (waitingForUpload || photoData) return;
 
+  const previousCamera = currentCamera;
   const nextCamera =
     currentCamera === 'environment' ? 'user' : 'environment';
 
@@ -340,10 +347,14 @@ async function switchCamera() {
     stream.getTracks().forEach(track => track.stop());
     stream = null;
   }
-
+  video.srcObject = null;
   currentCamera = nextCamera;
 
   await startCamera();
+
+  // If the requested camera is unavailable, keep the page usable
+  // and restore the previous camera selection for the next attempt.
+  if (!stream) currentCamera = previousCamera;
 }
 
       
