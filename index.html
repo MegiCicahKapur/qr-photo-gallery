@@ -62,8 +62,8 @@
       object-fit: cover;
     }
 
-    /* Betulkan paparan kiri-kanan kamera secara langsung. */
-    #video {
+    /* Cermin (mirror) hanya untuk kamera depan. Kamera belakang kekal normal. */
+    #video.mirrored {
       transform: scaleX(-1);
     }
 
@@ -339,6 +339,11 @@
     let photoData = null;
     let waitingForUpload = false;
     let currentCamera = 'environment';
+    let isMirrored = false;
+
+    // true  = gambar yang disimpan sama macam preview (cermin) untuk kamera depan
+    // false = gambar yang disimpan tidak dicermin (macam kamera biasa)
+    const MIRROR_SAVED_FRONT_PHOTO = true;
 
     document.getElementById('welcome').textContent =
       senderName ? 'Hai haii, ' + senderName + '!' :
@@ -435,6 +440,14 @@
         video.srcObject = stream;
         await video.play();
 
+        // Kesan kamera sebenar yang dibuka (bukan sekadar yang diminta).
+        // Webcam laptop biasanya tiada facingMode, jadi dianggap kamera depan.
+        const settings = stream.getVideoTracks()[0].getSettings();
+        isMirrored = settings.facingMode
+          ? settings.facingMode === 'user'
+          : true;
+        video.classList.toggle('mirrored', isMirrored);
+
         video.style.display = 'block';
         preview.style.display = 'none';
         cameraMessage.style.display = 'none';
@@ -500,12 +513,19 @@ async function switchCamera() {
       canvas.height = Math.round(video.videoHeight * scale);
 
       const ctx = canvas.getContext('2d');
-      // Kekalkan pembetulan orientasi kiri-kanan yang sedia ada.
-      ctx.translate(canvas.width, 0);
-      ctx.scale(-1, 1);
+
+      // Lukis video + filter. Balikkan kiri-kanan hanya untuk kamera depan,
+      // supaya gambar yang disimpan sama dengan preview.
+      ctx.save();
+      if (isMirrored && MIRROR_SAVED_FRONT_PHOTO) {
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+      }
       ctx.filter = filterSettings[selectedFilter] || 'none';
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      ctx.filter = 'none';
+      ctx.restore();
+
+      // Border tropika dilukis selepas restore supaya tidak terbalik.
       if (['aloha', 'bloom'].includes(selectedFilter)) drawTropicalBorder(ctx, canvas.width, canvas.height);
 
       photoData = canvas.toDataURL('image/jpeg', 0.88);
