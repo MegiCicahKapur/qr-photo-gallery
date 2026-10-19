@@ -297,7 +297,7 @@
     // true  = kekalkan tingkah laku ASAL: video dan gambar disimpan sentiasa dicermin
     //         (kedua-dua kamera depan dan belakang).
     // false = pembetulan pintar: cermin hanya untuk kamera depan.
-    const USE_ORIGINAL_CAMERA_MIRROR = false;
+    const USE_ORIGINAL_CAMERA_MIRROR = true;
 
     document.getElementById('welcome').textContent =
       senderName ? 'Hai haii, ' + senderName + '!' :
@@ -313,23 +313,23 @@
        lebar (W) dan corak rawak berbenih tetap, jadi layout sentiasa sama.
     ------------------------------------------------------------------ */
     const BORDERS = {
-      luau: { label: 'Tropical Party', seed: 11, bg: '#fffefb', edge: 'rgba(0,0,0,.16)',
+      luau: { label: 'Tropical Party', seed: 11, band: .12, sc: .72, bg: '#fffefb', edge: 'rgba(0,0,0,.16)',
         leaves: [['#1b9a52', '#35c26f']], nLeaf: 14, leafK: 1.4,
         flowers: [{ t: 'hib', o: '#f0628f', i: '#c2185b' }], nFlower: 9,
         blossoms: [{ t: 'plum', p: '#ffd0e0', c: '#f6a21e' }], nBlossom: 10,
         items: ['🍍', '🦩', '🥥', '🍹', '😎', '☀️', '🎸', '🍉', '🐚', '🌴', '🕶️', '🌺'], nItem: 18, bubble: 'Hello Summer' },
-      rope: { label: 'Coconut Rope', seed: 23, bg: '#fffdf6', rope: true,
+      rope: { label: 'Coconut Rope', seed: 23, band: .12, sc: .72, bg: '#fffdf6', rope: true,
         leaves: [['#6b8e3d', '#a3bf6f']], nLeaf: 18,
         palms: ['#7a9a4a', '#a9c06e', '#8fae57'], nPalm: 30,
         flowers: [{ t: 'hib', o: '#f2705f', i: '#c23a3a' }], nFlower: 10,
         blossoms: [{ t: 'plum', p: '#fffaf0', c: '#f4c542' }], nBlossom: 16,
         items: ['coconut', 'shell', 'coconut', 'shell'], nItem: 10 },
-      jungle: { label: 'Jungle Teal', seed: 37, bg: '#0f6b6a', lines: '#e8fffb',
+      jungle: { label: 'Jungle Teal', seed: 37, band: .12, sc: .72, bg: '#0f6b6a', lines: '#e8fffb',
         leaves: [['#0b4a50', '#1d8f89'], ['#0e5c5f', '#26a59b']], nLeaf: 40,
         palms: ['#1a8f8c', '#2cc1b6', '#52d6c4'], nPalm: 26,
         flowers: [{ t: 'plum', p: '#ffd84a', c: '#e0262f' }, { t: 'hib', o: '#ff5c8a', i: '#b3123f' }], nFlower: 10,
         blossoms: [{ t: 'plum', p: '#ffe36b', c: '#e0262f' }], nBlossom: 10 },
-      pink: { label: 'Pink Paradise', seed: 41, bg: '#7fd8cc', lines: '#ffffff',
+      pink: { label: 'Pink Paradise', seed: 41, band: .12, sc: .72, bg: '#7fd8cc', lines: '#ffffff',
         leaves: [['#4aa36a', '#86cf8b']], nLeaf: 8,
         palms: ['#8fcf6a', '#5ea84a', '#a8dc7a'], nPalm: 38,
         flowers: [{ t: 'hib', o: '#f4799b', i: '#c0214f' }, { t: 'hib', o: '#ff9ab5', i: '#d63a6a' }], nFlower: 12,
@@ -534,8 +534,8 @@
       else drawSticker(ctx, it, x, y, size, rot);
     }
 
-    function drawRope(ctx, W, H, inset, u) {
-      const q = u * .022;
+    function drawRope(ctx, W, H, inset, u, sc) {
+      const q = u * .022 * sc;
       const rect = function () { ctx.beginPath(); ctx.rect(inset, inset, W - 2 * inset, H - 2 * inset); };
       ctx.save();
       ctx.strokeStyle = '#dcc592'; ctx.lineWidth = q; rect(); ctx.stroke();
@@ -544,21 +544,21 @@
       ctx.setLineDash([]);
       ctx.strokeStyle = '#dcc592'; ctx.lineWidth = q * .7;
       [[W / 2, inset], [W / 2, H - inset], [inset, H / 2], [W - inset, H / 2]].forEach(function (k) {
-        ctx.beginPath(); ctx.ellipse(k[0], k[1], u * .05, u * .03, 0, 0, 7); ctx.stroke();
-        ctx.beginPath(); ctx.ellipse(k[0], k[1], u * .03, u * .05, 0, 0, 7); ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(k[0], k[1], u * .05 * sc, u * .03 * sc, 0, 0, 7); ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(k[0], k[1], u * .03 * sc, u * .05 * sc, 0, 0, 7); ctx.stroke();
       });
       ctx.restore();
     }
 
-    function drawBubble(ctx, W, H, u, text) {
-      const x = W / 2, y = H - u * .085;
+    function drawBubble(ctx, W, H, u, text, band, sc) {
+      const x = W / 2, y = H - band * .5;
       ctx.save();
       ctx.fillStyle = '#fff';
       ctx.strokeStyle = '#e8d9c8';
       ctx.lineWidth = u * .004;
-      ctx.beginPath(); ctx.ellipse(x, y, u * .19, u * .06, 0, 0, 7); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(x, y, u * .19 * sc, u * .06 * sc, 0, 0, 7); ctx.fill(); ctx.stroke();
       ctx.fillStyle = '#e8445c';
-      ctx.font = 'bold ' + Math.round(u * .05) + 'px Arial, sans-serif';
+      ctx.font = 'bold ' + Math.round(u * .05 * sc) + 'px Arial, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(text, x, y);
@@ -576,7 +576,7 @@
         return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
       };
       const pick = function (a) { return a[(R() * a.length) | 0]; };
-      const u = W, band = u * .17, P = 2 * (W + H);
+      const u = W, band = u * (b.band || .17), sc = b.sc || 1, P = 2 * (W + H);
 
       // Titik di keliling gambar; a = arah ke tengah (darjah, 0 = atas).
       const at = function (s, d) {
@@ -607,15 +607,15 @@
         ctx.lineWidth = Math.max(1, u * .004);
         ctx.strokeRect(band, band, W - 2 * band, H - 2 * band);
       }
-      if (b.rope) drawRope(ctx, W, H, band * .9, u);
+      if (b.rope) drawRope(ctx, W, H, band * .9, u, sc);
 
       if (b.palms) place(b.nPalm || 0, .3, function (x, y, a) {
-        drawPalm(ctx, x, y, a, u * (.14 + R() * .1), pick(b.palms));
+        drawPalm(ctx, x, y, a, u * (.14 + R() * .1) * sc, pick(b.palms));
       });
       const k = b.leafK || 1;
       place(b.nLeaf || 30, .3, function (x, y, a) {
         const c = pick(b.leaves);
-        drawLeaf(ctx, x, y, a, u * (.10 + R() * .07) * k, u * (.045 + R() * .03) * k, c[0], c[1]);
+        drawLeaf(ctx, x, y, a, u * (.10 + R() * .07) * k * sc, u * (.045 + R() * .03) * k * sc, c[0], c[1]);
       });
 
       if (b.lines) {
@@ -627,19 +627,19 @@
       }
 
       place(b.nBlossom || 0, .5, function (x, y, a) {
-        drawFlower(ctx, pick(b.blossoms), x, y, u * (.028 + R() * .02), a * Math.PI / 180);
+        drawFlower(ctx, pick(b.blossoms), x, y, u * (.028 + R() * .02) * sc, a * Math.PI / 180);
       });
       place(b.nFlower || 0, .45, function (x, y, a) {
-        drawFlower(ctx, pick(b.flowers), x, y, u * (.05 + R() * .03), a * Math.PI / 180);
+        drawFlower(ctx, pick(b.flowers), x, y, u * (.05 + R() * .03) * sc, a * Math.PI / 180);
       });
       // Bunga besar di empat penjuru
       [[0, 0], [1, 0], [0, 1], [1, 1]].forEach(function (c) {
-        drawFlower(ctx, pick(b.flowers), band * .5 + c[0] * (W - band), band * .5 + c[1] * (H - band), u * .085, R() * 6.28);
+        drawFlower(ctx, pick(b.flowers), band * .5 + c[0] * (W - band), band * .5 + c[1] * (H - band), u * .085 * sc, R() * 6.28);
       });
       if (b.items) place(b.nItem || 0, .4, function (x, y) {
-        drawItem(ctx, pick(b.items), x, y, u * .085, (R() - .5) * .6);
+        drawItem(ctx, pick(b.items), x, y, u * .085 * sc, (R() - .5) * .6);
       });
-      if (b.bubble) drawBubble(ctx, W, H, u, b.bubble);
+      if (b.bubble) drawBubble(ctx, W, H, u, b.bubble, band, sc);
       ctx.restore();
     }
 
