@@ -67,8 +67,11 @@
       transform: scaleX(-1);
     }
 
+    /* Gambar siap + frame ditunjuk penuh (tidak dipotong). */
     #preview {
       display: none;
+      object-fit: contain;
+      background: #fffaf1;
     }
 
     #cameraMessage {
@@ -79,7 +82,11 @@
       line-height: 1.5;
     }
 
-    
+    /* Lapisan kesan live (tint, vignette, grain) di atas video. */
+    .fx-layer { position: absolute; inset: 0; pointer-events: none; z-index: 1; display: none; }
+    .fx-layer > div { position: absolute; inset: 0; }
+    #fxGrain { mix-blend-mode: overlay; background-size: 128px 128px; opacity: 0; }
+
 .controls {
   display: flex;
   align-items: center;
@@ -122,7 +129,6 @@
   box-shadow: 0 0 0 2px #1e3a8a;
   padding: 0;
 }
-
 
     button {
       border: 0;
@@ -172,42 +178,15 @@
       cursor: wait;
     }
 
-
-    /* Filter Gallery: ditambah secara berasingan supaya layout asal kekal. */
+    /* Senarai filter (dijana oleh JavaScript daripada objek FILTERS). */
     .filter-panel { margin: 14px 0 8px; }
     .filter-heading { font-size: 13px; font-weight: 700; color: #64748b; margin: 0 0 9px; }
     .filter-list { display: flex; gap: 10px; overflow-x: auto; padding: 2px 2px 10px; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
     .filter-option { flex: 0 0 76px; border: 2px solid transparent; border-radius: 13px; background: #fff; padding: 5px; color: #334155; font-size: 11px; font-weight: 600; text-align: center; }
     .filter-option.active { border-color: #1e3a8a; background: #eff6ff; }
-    .filter-thumb { height: 55px; border-radius: 8px; margin-bottom: 5px; background: linear-gradient(135deg,#f7c873,#df6b5b 48%,#167d88); position: relative; overflow: hidden; }
-    .filter-thumb::after { content: ''; position: absolute; inset: 0; background: var(--thumb-filter, transparent); }
-    .filter-option[data-filter="original"] .filter-thumb { background: linear-gradient(135deg,#d7e3e8,#f5d8bc 50%,#3b6a76); }
-    .filter-option[data-filter="clarendon"] .filter-thumb { filter: contrast(1.3) saturate(1.3); }
-    .filter-option[data-filter="gingham"] .filter-thumb { filter: sepia(.12) brightness(1.08) saturate(.75); }
-    .filter-option[data-filter="juno"] .filter-thumb { filter: saturate(1.35) sepia(.1); }
-    .filter-option[data-filter="lark"] .filter-thumb { filter: brightness(1.12) saturate(.82); }
-    .filter-option[data-filter="ludwig"] .filter-thumb { filter: sepia(.16) saturate(.9); }
-    .filter-option[data-filter="valencia"] .filter-thumb { filter: sepia(.28) brightness(1.06); }
-    .filter-option[data-filter="aden"] .filter-thumb { filter: sepia(.12) hue-rotate(10deg) saturate(.72) brightness(1.08); }
-    .filter-option[data-filter="moon"] .filter-thumb { filter: grayscale(1) contrast(1.1); }
-    .filter-option[data-filter="reyes"] .filter-thumb { filter: sepia(.22) brightness(1.1) saturate(.7); }
-    .filter-option[data-filter="jakarta"] .filter-thumb { filter: sepia(.22) saturate(1.2) contrast(1.08); }
-    .filter-option[data-filter="losangeles"] .filter-thumb { filter: sepia(.3) saturate(1.25) brightness(1.06); }
-    .filter-option[data-filter="tokyo"] .filter-thumb { filter: hue-rotate(12deg) saturate(1.12) contrast(1.15); }
-    .filter-option[data-filter="paris"] .filter-thumb { filter: brightness(1.12) saturate(.82) sepia(.08); }
-    .filter-option[data-filter="seoul"] .filter-thumb { filter: brightness(1.12) saturate(.8) hue-rotate(8deg); }
-    .filter-option[data-filter="bali"] .filter-thumb { filter: saturate(1.3) sepia(.16); }
-    .filter-option[data-filter="aloha"] .filter-thumb { background: linear-gradient(135deg,#f7bf38,#ef705c 45%,#0e8990); }
-    .filter-option[data-filter="sunset"] .filter-thumb { background: linear-gradient(135deg,#ffb23f,#f16a70 55%,#7255a5); }
-    .filter-option[data-filter="bloom"] .filter-thumb { background: linear-gradient(135deg,#f9d34b,#e94d72 55%,#168b80); }
-    .filter-option[data-filter="islandfilm"] .filter-thumb { filter: sepia(.2) contrast(.9) saturate(.8); }
-    .aloha-overlay { display: none; position: absolute; inset: 0; pointer-events: none; z-index: 2; font-size: clamp(23px, 7vw, 38px); }
-    .aloha-overlay span { position: absolute; filter: drop-shadow(0 1px 1px #ffffffaa); }
-    .aloha-overlay .f1 { top: 2px; left: 3px; }
-    .aloha-overlay .f2 { top: 2px; right: 3px; transform: rotate(25deg); }
-    .aloha-overlay .f3 { bottom: 2px; left: 3px; transform: rotate(-18deg); }
-    .aloha-overlay .f4 { bottom: 2px; right: 3px; transform: rotate(18deg); }
-
+    .filter-thumb { height: 55px; border-radius: 8px; margin-bottom: 5px; position: relative; overflow: hidden; }
+    .thumb-base { position: absolute; inset: 0; background: linear-gradient(135deg,#f7c873,#df6b5b 48%,#167d88); }
+    .thumb-fx { position: absolute; inset: 0; }
   </style>
 </head>
 
@@ -221,42 +200,21 @@
     <div class="camera-box">
       <video id="video" autoplay playsinline muted></video>
       <img id="preview" alt="Gambar yang diambil">
-    <div class="aloha-overlay" id="alohaOverlay" aria-hidden="true">
-      <span class="f1">🌺</span><span class="f2">🌴</span>
-      <span class="f3">🌴</span><span class="f4">🌺</span>
-    </div>
+      <div class="fx-layer" id="fxLayer" aria-hidden="true">
+        <div id="fxTint"></div>
+        <div id="fxVignette"></div>
+        <div id="fxGrain"></div>
+      </div>
       <div id="cameraMessage">
         Kamera akan ada kat sini.
       </div>
     </div>
 
     <section class="filter-panel" aria-label="Pilihan filter">
-      <p class="filter-heading">PILIH FILTER · SWIPE</p>
-      <div class="filter-list" id="filterList">
-        <button type="button" class="filter-option active" data-filter="original" onclick="selectFilter('original', this)"><div class="filter-thumb"></div>Original</button>
-        <button type="button" class="filter-option" data-filter="clarendon" onclick="selectFilter('clarendon', this)"><div class="filter-thumb"></div>Clarendon</button>
-        <button type="button" class="filter-option" data-filter="gingham" onclick="selectFilter('gingham', this)"><div class="filter-thumb"></div>Gingham</button>
-        <button type="button" class="filter-option" data-filter="juno" onclick="selectFilter('juno', this)"><div class="filter-thumb"></div>Juno</button>
-        <button type="button" class="filter-option" data-filter="lark" onclick="selectFilter('lark', this)"><div class="filter-thumb"></div>Lark</button>
-        <button type="button" class="filter-option" data-filter="ludwig" onclick="selectFilter('ludwig', this)"><div class="filter-thumb"></div>Ludwig</button>
-        <button type="button" class="filter-option" data-filter="valencia" onclick="selectFilter('valencia', this)"><div class="filter-thumb"></div>Valencia</button>
-        <button type="button" class="filter-option" data-filter="aden" onclick="selectFilter('aden', this)"><div class="filter-thumb"></div>Aden</button>
-        <button type="button" class="filter-option" data-filter="moon" onclick="selectFilter('moon', this)"><div class="filter-thumb"></div>Moon</button>
-        <button type="button" class="filter-option" data-filter="reyes" onclick="selectFilter('reyes', this)"><div class="filter-thumb"></div>Reyes</button>
-        <button type="button" class="filter-option" data-filter="jakarta" onclick="selectFilter('jakarta', this)"><div class="filter-thumb"></div>Jakarta</button>
-        <button type="button" class="filter-option" data-filter="losangeles" onclick="selectFilter('losangeles', this)"><div class="filter-thumb"></div>Los Angeles</button>
-        <button type="button" class="filter-option" data-filter="tokyo" onclick="selectFilter('tokyo', this)"><div class="filter-thumb"></div>Tokyo</button>
-        <button type="button" class="filter-option" data-filter="paris" onclick="selectFilter('paris', this)"><div class="filter-thumb"></div>Paris</button>
-        <button type="button" class="filter-option" data-filter="seoul" onclick="selectFilter('seoul', this)"><div class="filter-thumb"></div>Seoul</button>
-        <button type="button" class="filter-option" data-filter="bali" onclick="selectFilter('bali', this)"><div class="filter-thumb"></div>Bali</button>
-        <button type="button" class="filter-option" data-filter="aloha" onclick="selectFilter('aloha', this)"><div class="filter-thumb"></div>🌺 Aloha</button>
-        <button type="button" class="filter-option" data-filter="sunset" onclick="selectFilter('sunset', this)"><div class="filter-thumb"></div>Sunset Luau</button>
-        <button type="button" class="filter-option" data-filter="bloom" onclick="selectFilter('bloom', this)"><div class="filter-thumb"></div>Tropical Bloom</button>
-        <button type="button" class="filter-option" data-filter="islandfilm" onclick="selectFilter('islandfilm', this)"><div class="filter-thumb"></div>Island Film</button>
-      </div>
+      <p class="filter-heading">PILIH FILTER · SWIPE · TEKAN SEMULA UNTUK BATAL</p>
+      <div class="filter-list" id="filterList"></div>
     </section>
 
-  
 <div class="controls">
   <!-- Gallery: empat petak kecil -->
   <button id="galleryButton"
@@ -295,12 +253,10 @@
   </button>
 </div>
 
-
     <button id="startButton" class="primary" onclick="startCamera()">
       Buka Kamera
     </button>
-    
-    
+
     <button id="retakeButton" class="secondary primary"
       onclick="retakePhoto()">
       Retake
@@ -334,6 +290,10 @@
     const commentInput = document.getElementById('comment');
     const sendButton = document.getElementById('sendButton');
     const statusBox = document.getElementById('status');
+    const fxLayer = document.getElementById('fxLayer');
+    const fxTint = document.getElementById('fxTint');
+    const fxVignette = document.getElementById('fxVignette');
+    const fxGrain = document.getElementById('fxGrain');
 
     let stream = null;
     let photoData = null;
@@ -345,6 +305,10 @@
     // false = gambar yang disimpan tidak dicermin (macam kamera biasa)
     const MIRROR_SAVED_FRONT_PHOTO = true;
 
+    // Frame tropika selepas gambar diambil. Tukar ke false untuk matikan.
+    const FRAME_ENABLED = true;
+    const FRAME_MARGIN = 0.17; // lebar frame sebagai pecahan sisi pendek gambar
+
     document.getElementById('welcome').textContent =
       senderName ? 'Hai haii, ' + senderName + '!' :
       'Sila kembali dan letak nama duluu.';
@@ -353,65 +317,359 @@
       statusBox.textContent = message;
     }
 
-
-    // Filter settings: same effect is applied to preview and saved photo.
-    let selectedFilter = 'original';
-    const filterSettings = {
-      original: 'none', clarendon: 'contrast(1.22) saturate(1.2)',
-      gingham: 'brightness(1.06) sepia(.12) saturate(.82)',
-      juno: 'saturate(1.28) sepia(.08)', lark: 'brightness(1.1) saturate(.84)',
-      ludwig: 'sepia(.12) saturate(.94) contrast(1.04)',
-      valencia: 'sepia(.24) brightness(1.05)', aden: 'sepia(.1) saturate(.75) brightness(1.08)',
-      moon: 'grayscale(1) contrast(1.08)', reyes: 'sepia(.2) brightness(1.08) saturate(.72)',
-      jakarta: 'sepia(.2) saturate(1.18) contrast(1.08)',
-      losangeles: 'sepia(.28) saturate(1.2) brightness(1.05)',
-      tokyo: 'hue-rotate(10deg) saturate(1.12) contrast(1.12)',
-      paris: 'brightness(1.1) saturate(.84) sepia(.06)',
-      seoul: 'brightness(1.1) saturate(.82) hue-rotate(7deg)',
-      bali: 'saturate(1.28) sepia(.14)', aloha: 'saturate(1.25) sepia(.12) contrast(1.04)',
-      sunset: 'sepia(.22) saturate(1.25) hue-rotate(-8deg) brightness(1.04)',
-      bloom: 'saturate(1.35) contrast(1.04)', islandfilm: 'sepia(.18) contrast(.92) saturate(.82)'
+    /* ------------------------------------------------------------------
+       FILTERS
+       css      : rantai fungsi CSS filter (preview guna terus; gambar disimpan
+                  guna versi matriks piksel supaya jadi di semua pelayar,
+                  termasuk iPhone/Safari yang tidak sokong ctx.filter).
+       tint     : warna overlay (opsyenal)
+       vignette : kegelapan tepi 0-1 (opsyenal)
+       grain    : kekuatan bintik filem 0-1 (opsyenal)
+    ------------------------------------------------------------------ */
+    const FILTERS = {
+      clarendon: { label: 'Clarendon', css: 'contrast(1.22) saturate(1.2)' },
+      jakarta:   { label: 'Jakarta', css: 'sepia(.2) saturate(1.18) contrast(1.08)' },
+      losangeles:{ label: 'Los Angeles', css: 'sepia(.28) saturate(1.2) brightness(1.05)' },
+      tokyo:     { label: 'Tokyo', css: 'hue-rotate(10deg) saturate(1.12) contrast(1.12)' },
+      bloom:     { label: 'Tropical Bloom', css: 'saturate(1.35) contrast(1.04) brightness(1.03)', tint: 'rgba(255,120,150,.07)' },
+      midnight:  { label: 'Midnight', css: 'brightness(.85) contrast(1.15) saturate(.8)', tint: 'rgba(20,40,120,.28)', vignette: .5 },
+      rio:       { label: 'Rio de Janeiro', css: 'saturate(1.45) contrast(1.1) brightness(1.05) sepia(.1)', tint: 'rgba(255,160,40,.12)' },
+      hyper:     { label: 'Hyper', css: 'saturate(1.9) contrast(1.25) brightness(1.04) hue-rotate(-4deg)', tint: 'rgba(255,0,170,.06)' },
+      gritty:    { label: 'Gritty', css: 'grayscale(.5) contrast(1.4) brightness(.92)', vignette: .6, grain: .45 }
     };
 
-    function selectFilter(name, button) {
-      selectedFilter = name;
-      document.querySelectorAll('.filter-option').forEach(item => item.classList.remove('active'));
-      if (button) button.classList.add('active');
-      const effect = filterSettings[name] || 'none';
-      video.style.filter = effect;
-      const overlay = document.getElementById('alohaOverlay');
-      overlay.style.display = ['aloha', 'bloom'].includes(name) ? 'block' : 'none';
-      setStatus(name === 'aloha' || name === 'bloom' ? 'Filter tropika dipilih! 🌺' : 'Filter ' + name + ' dipilih.');
-    }
+    let selectedFilter = null; // null = tiada filter
 
-    function drawTropicalBorder(ctx, width, height) {
-      // Decorative hibiscus/palm-style corners are drawn into the actual saved image.
-      const flower = (cx, cy, size, rotation) => {
-        ctx.save(); ctx.translate(cx, cy); ctx.rotate(rotation);
-        const colors = ['#ffcf45', '#ff6b62', '#f34f83', '#fff0c2', '#0f8c83'];
-        for (let i = 0; i < 5; i++) {
-          ctx.save(); ctx.rotate(i * Math.PI * 2 / 5);
-          ctx.fillStyle = colors[i % colors.length];
-          ctx.beginPath(); ctx.ellipse(0, -size * .48, size * .25, size * .48, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-        }
-        ctx.fillStyle = '#f6b629'; ctx.beginPath(); ctx.arc(0, 0, size * .17, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
-      };
-      const leaf = (x, y, size, angle) => {
-        ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
-        ctx.fillStyle = '#167d65'; ctx.beginPath(); ctx.ellipse(0, 0, size * .22, size, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = '#b7d77a'; ctx.lineWidth = Math.max(1, size * .035); ctx.beginPath(); ctx.moveTo(0, size * .8); ctx.lineTo(0, -size * .8); ctx.stroke(); ctx.restore();
-      };
-      const size = Math.min(width, height) * .075;
-      [[size*.8,size*.8,0.2],[width-size*.8,size*.8,-0.4],[size*.8,height-size*.8,-0.3],[width-size*.8,height-size*.8,0.5]].forEach(([x,y,a],i)=>{
-        leaf(x + (i%2? -size*.35:size*.35), y, size*.8, a);
-        flower(x, y, size, a);
+    // Tile bintik (noise) untuk grain, dikongsi oleh preview dan gambar disimpan.
+    const noiseTile = (function () {
+      const size = 128;
+      const c = document.createElement('canvas');
+      c.width = c.height = size;
+      const x = c.getContext('2d');
+      const id = x.createImageData(size, size);
+      for (let i = 0; i < id.data.length; i += 4) {
+        const v = Math.random() * 255;
+        id.data[i] = id.data[i + 1] = id.data[i + 2] = v;
+        id.data[i + 3] = 255;
+      }
+      x.putImageData(id, 0, 0);
+      return c;
+    })();
+    fxGrain.style.backgroundImage = 'url(' + noiseTile.toDataURL() + ')';
+
+    function buildFilterList() {
+      const list = document.getElementById('filterList');
+      Object.keys(FILTERS).forEach(function (key) {
+        const f = FILTERS[key];
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'filter-option';
+        b.dataset.filter = key;
+        b.onclick = function () { selectFilter(key); };
+
+        const thumb = document.createElement('div');
+        thumb.className = 'filter-thumb';
+        const base = document.createElement('div');
+        base.className = 'thumb-base';
+        base.style.filter = f.css;
+        const fx = document.createElement('div');
+        fx.className = 'thumb-fx';
+        const layers = [];
+        if (f.vignette) layers.push('radial-gradient(circle at center, transparent 45%, rgba(0,0,0,' + f.vignette + ') 100%)');
+        if (f.tint) layers.push('linear-gradient(' + f.tint + ',' + f.tint + ')');
+        fx.style.background = layers.join(',') || 'none';
+        thumb.append(base, fx);
+
+        b.append(thumb, document.createTextNode(f.label));
+        list.appendChild(b);
       });
-      // Slim warm tropical edge, kept away from the centre of the photo.
-      ctx.strokeStyle = 'rgba(255, 207, 69, .88)'; ctx.lineWidth = Math.max(3, Math.min(width,height)*.008);
-      ctx.strokeRect(ctx.lineWidth, ctx.lineWidth, width-ctx.lineWidth*2, height-ctx.lineWidth*2);
     }
 
+    function applyLiveEffects() {
+      const f = selectedFilter ? FILTERS[selectedFilter] : null;
+      video.style.filter = f ? f.css : 'none';
+      fxTint.style.background = f && f.tint ? f.tint : 'none';
+      fxVignette.style.background = f && f.vignette
+        ? 'radial-gradient(circle farthest-corner at center, transparent 55%, rgba(0,0,0,' + f.vignette + ') 100%)'
+        : 'none';
+      fxGrain.style.opacity = f && f.grain ? f.grain : 0;
+      fxLayer.style.display = (f && video.style.display !== 'none') ? 'block' : 'none';
+    }
+
+    function selectFilter(name) {
+      if (photoData) {
+        setStatus('Tekan Retake dulu kalau nak tukar filter.');
+        return;
+      }
+      selectedFilter = (selectedFilter === name) ? null : name;
+      document.querySelectorAll('.filter-option').forEach(function (b) {
+        b.classList.toggle('active', b.dataset.filter === selectedFilter);
+      });
+      applyLiveEffects();
+      setStatus(selectedFilter
+        ? 'Filter ' + FILTERS[selectedFilter].label + ' dipilih.'
+        : 'Filter dibatalkan.');
+    }
+
+    /* ------------------------------------------------------------------
+       Terapkan rantai CSS filter pada piksel canvas (tanpa ctx.filter).
+       Semua fungsi (brightness, contrast, saturate, sepia, grayscale,
+       hue-rotate) digabungkan menjadi satu matriks 3x3 + offset.
+    ------------------------------------------------------------------ */
+    function applyCssFilterToCanvas(ctx, w, h, css) {
+      if (!css || css === 'none') return;
+
+      let M = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+      let o = [0, 0, 0];
+      const compose = function (A, b) {
+        const N = new Array(9), n = new Array(3);
+        for (let r = 0; r < 3; r++) {
+          for (let c = 0; c < 3; c++) {
+            N[r * 3 + c] = A[r * 3] * M[c] + A[r * 3 + 1] * M[3 + c] + A[r * 3 + 2] * M[6 + c];
+          }
+          n[r] = A[r * 3] * o[0] + A[r * 3 + 1] * o[1] + A[r * 3 + 2] * o[2] + b[r];
+        }
+        M = N; o = n;
+      };
+
+      const re = /([a-z-]+)\(\s*(-?[\d.]+)(deg|%)?\s*\)/g;
+      let mt;
+      while ((mt = re.exec(css))) {
+        const name = mt[1];
+        let v = parseFloat(mt[2]);
+        if (mt[3] === '%') v /= 100;
+        const Z = [0, 0, 0];
+
+        if (name === 'brightness') {
+          compose([v, 0, 0, 0, v, 0, 0, 0, v], Z);
+        } else if (name === 'contrast') {
+          const k = 127.5 * (1 - v);
+          compose([v, 0, 0, 0, v, 0, 0, 0, v], [k, k, k]);
+        } else if (name === 'saturate') {
+          compose([
+            .213 + .787 * v, .715 - .715 * v, .072 - .072 * v,
+            .213 - .213 * v, .715 + .285 * v, .072 - .072 * v,
+            .213 - .213 * v, .715 - .715 * v, .072 + .928 * v
+          ], Z);
+        } else if (name === 'grayscale') {
+          const s = 1 - Math.min(1, v);
+          compose([
+            .2126 + .7874 * s, .7152 - .7152 * s, .0722 - .0722 * s,
+            .2126 - .2126 * s, .7152 + .2848 * s, .0722 - .0722 * s,
+            .2126 - .2126 * s, .7152 - .7152 * s, .0722 + .9278 * s
+          ], Z);
+        } else if (name === 'sepia') {
+          const s = 1 - Math.min(1, v);
+          compose([
+            .393 + .607 * s, .769 - .769 * s, .189 - .189 * s,
+            .349 - .349 * s, .686 + .314 * s, .168 - .168 * s,
+            .272 - .272 * s, .534 - .534 * s, .131 + .869 * s
+          ], Z);
+        } else if (name === 'hue-rotate') {
+          const a = v * Math.PI / 180, cs = Math.cos(a), sn = Math.sin(a);
+          compose([
+            .213 + cs * .787 - sn * .213, .715 - cs * .715 - sn * .715, .072 - cs * .072 + sn * .928,
+            .213 - cs * .213 + sn * .143, .715 + cs * .285 + sn * .140, .072 - cs * .072 - sn * .283,
+            .213 - cs * .213 - sn * .787, .715 - cs * .715 + sn * .715, .072 + cs * .928 + sn * .072
+          ], Z);
+        }
+      }
+
+      const img = ctx.getImageData(0, 0, w, h);
+      const d = img.data;
+      const m0 = M[0], m1 = M[1], m2 = M[2], m3 = M[3], m4 = M[4], m5 = M[5], m6 = M[6], m7 = M[7], m8 = M[8];
+      const o0 = o[0], o1 = o[1], o2 = o[2];
+      for (let i = 0; i < d.length; i += 4) {
+        const r = d[i], g = d[i + 1], b = d[i + 2];
+        d[i]     = m0 * r + m1 * g + m2 * b + o0;
+        d[i + 1] = m3 * r + m4 * g + m5 * b + o1;
+        d[i + 2] = m6 * r + m7 * g + m8 * b + o2;
+      }
+      ctx.putImageData(img, 0, 0);
+    }
+
+    // Filter penuh pada gambar disimpan: warna -> tint -> vignette -> grain.
+    function applyFilterEffects(ctx, w, h, f) {
+      applyCssFilterToCanvas(ctx, w, h, f.css);
+
+      if (f.tint) {
+        ctx.fillStyle = f.tint;
+        ctx.fillRect(0, 0, w, h);
+      }
+
+      if (f.vignette) {
+        const r = Math.hypot(w, h) / 2;
+        const g = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, r);
+        g.addColorStop(0, 'rgba(0,0,0,0)');
+        g.addColorStop(.55, 'rgba(0,0,0,0)');
+        g.addColorStop(1, 'rgba(0,0,0,' + f.vignette + ')');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, w, h);
+      }
+
+      if (f.grain) {
+        const boxW = document.querySelector('.camera-box').clientWidth || 400;
+        const k = w / boxW; // samakan saiz bintik dengan preview
+        ctx.save();
+        ctx.globalCompositeOperation = 'overlay';
+        ctx.globalAlpha = f.grain;
+        ctx.scale(k, k);
+        ctx.fillStyle = ctx.createPattern(noiseTile, 'repeat');
+        ctx.fillRect(0, 0, w / k, h / k);
+        ctx.restore();
+      }
+    }
+
+    /* ------------------------------------------------------------------
+       FRAME TROPIKA (dilukis dengan canvas, ikut rujukan gambar)
+    ------------------------------------------------------------------ */
+    function drawLeaf(ctx, x, y, angle, len, wid, c1, c2) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle * Math.PI / 180);
+      const g = ctx.createLinearGradient(0, 0, 0, -len);
+      g.addColorStop(0, c1);
+      g.addColorStop(1, c2);
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.bezierCurveTo(wid, -len * .2, wid * 1.05, -len * .75, 0, -len);
+      ctx.bezierCurveTo(-wid * 1.05, -len * .75, -wid, -len * .2, 0, 0);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(190,225,170,.5)';
+      ctx.lineWidth = Math.max(1, len * .012);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(0, -len * .95);
+      for (let i = 1; i <= 5; i++) {
+        const t = i / 6.5, yy = -len * t;
+        const w = wid * .75 * (1 - Math.abs(t - .4) * .9);
+        ctx.moveTo(0, yy); ctx.lineTo(w, yy - len * .12);
+        ctx.moveTo(0, yy); ctx.lineTo(-w, yy - len * .12);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawPalm(ctx, x, y, angle, len, color) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle * Math.PI / 180);
+      ctx.strokeStyle = color;
+      ctx.lineCap = 'round';
+      ctx.lineWidth = Math.max(1.5, len * .012);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(0, -len);
+      ctx.stroke();
+      const n = 22;
+      for (let i = 1; i <= n; i++) {
+        const t = i / (n + 1), yy = -len * t;
+        const l = len * .28 * (1 - Math.abs(t - .45) * 1.1);
+        ctx.lineWidth = Math.max(1, len * .01);
+        ctx.beginPath();
+        ctx.moveTo(0, yy); ctx.lineTo(l * .9, yy - l * .55);
+        ctx.moveTo(0, yy); ctx.lineTo(-l * .9, yy - l * .55);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawHibiscus(ctx, x, y, r, outer, inner, rot) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rot);
+      for (let i = 0; i < 5; i++) {
+        ctx.save();
+        ctx.rotate(i * Math.PI * 2 / 5);
+        const g = ctx.createRadialGradient(0, 0, r * .05, 0, 0, r);
+        g.addColorStop(0, inner);
+        g.addColorStop(.5, outer);
+        g.addColorStop(1, outer);
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.bezierCurveTo(-r * .75, -r * .2, -r * .8, -r * .98, 0, -r * .98);
+        ctx.bezierCurveTo(r * .8, -r * .98, r * .75, -r * .2, 0, 0);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,.10)';
+        ctx.lineWidth = Math.max(1, r * .015);
+        ctx.stroke();
+        ctx.restore();
+      }
+      ctx.strokeStyle = '#f2c14e';
+      ctx.lineWidth = Math.max(2, r * .05);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(r * .2, -r * .7);
+      ctx.stroke();
+      ctx.fillStyle = '#f6a21e';
+      for (let i = 0; i < 5; i++) {
+        ctx.beginPath();
+        ctx.arc(r * .2 + Math.cos(i * 1.3) * r * .07, -r * .7 + Math.sin(i * 1.3) * r * .07, r * .04, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // Satu sudut: asal (0,0) ialah penjuru canvas, hiasan meluas ke +x / +y.
+    function drawCorner(ctx, s, flower) {
+      drawPalm(ctx, s * .08, s * .12, 105, s * .95, '#cfae5a');
+      drawPalm(ctx, s * .12, s * .06, 155, s * .92, '#1f7d70');
+      drawLeaf(ctx, s * .22, s * .12, 120, s * .82, s * .28, '#14574f', '#2a8f80');
+      drawLeaf(ctx, s * .10, s * .26, 150, s * .72, s * .24, '#1b6d63', '#33a08e');
+      drawHibiscus(ctx, s * .40, s * .40, s * .30, flower.outer, flower.inner, flower.rot);
+    }
+
+    function addTropicalFrame(photo) {
+      const pw = photo.width, ph = photo.height;
+      const m = Math.round(Math.min(pw, ph) * FRAME_MARGIN);
+      const W = pw + 2 * m, H = ph + 2 * m;
+
+      const c = document.createElement('canvas');
+      c.width = W; c.height = H;
+      const ctx = c.getContext('2d');
+
+      ctx.fillStyle = '#fffaf1';
+      ctx.fillRect(0, 0, W, H);
+      ctx.drawImage(photo, m, m);
+
+      // Garisan emas berganda
+      const gold = ctx.createLinearGradient(0, 0, W, H);
+      gold.addColorStop(0, '#f3d27a');
+      gold.addColorStop(.5, '#c8912b');
+      gold.addColorStop(1, '#f3d27a');
+      ctx.strokeStyle = gold;
+      const lw = Math.max(3, m * .03);
+      ctx.lineWidth = lw * 1.4;
+      ctx.strokeRect(m - m * .05, m - m * .05, pw + m * .1, ph + m * .1);
+      ctx.lineWidth = lw * .7;
+      ctx.strokeRect(m - m * .14, m - m * .14, pw + m * .28, ph + m * .28);
+
+      // Empat sudut hiasan (merah di kiri, oren di kanan)
+      const RED = { outer: '#e9584a', inner: '#8c1d3b', rot: .3 };
+      const ORANGE = { outer: '#fb9b2a', inner: '#9a2b5a', rot: 1.1 };
+      const s = m * 1.75;
+      [
+        { tx: 0, ty: 0, sx: 1,  sy: 1,  flower: RED },
+        { tx: W, ty: 0, sx: -1, sy: 1,  flower: ORANGE },
+        { tx: 0, ty: H, sx: 1,  sy: -1, flower: RED },
+        { tx: W, ty: H, sx: -1, sy: -1, flower: ORANGE }
+      ].forEach(function (k) {
+        ctx.save();
+        ctx.translate(k.tx, k.ty);
+        ctx.scale(k.sx, k.sy);
+        drawCorner(ctx, s, k.flower);
+        ctx.restore();
+      });
+
+      return c;
+    }
+
+    /* ------------------------------------------------------------------
+       KAMERA
+    ------------------------------------------------------------------ */
     async function startCamera() {
       if (!senderName) {
         setStatus('Nama tidak ditemui. Sila buka semula melalui halaman utama.');
@@ -431,7 +689,7 @@
         stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
           video: {
-           facingMode: { ideal: currentCamera },
+            facingMode: { ideal: currentCamera },
             width: { ideal: 1600 },
             height: { ideal: 1200 }
           }
@@ -454,6 +712,7 @@
         captureButton.style.display = 'block';
         startButton.style.display = 'none';
         document.getElementById('switchCameraButton').style.display = 'inline-block';
+        applyLiveEffects();
 
         setStatus('Kamera readyy. Tekan bulat tu untuk bergambar, senyumm.');
       } catch (error) {
@@ -473,66 +732,67 @@
       }
     }
 
-    
-async function switchCamera() {
-  if (waitingForUpload || photoData) return;
+    async function switchCamera() {
+      if (waitingForUpload || photoData) return;
 
-  const nextCamera =
-    currentCamera === 'environment' ? 'user' : 'environment';
+      const nextCamera =
+        currentCamera === 'environment' ? 'user' : 'environment';
 
-  if (stream) {
-    stream.getTracks().forEach(track => track.stop());
-    stream = null;
-  }
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+      }
 
-  currentCamera = nextCamera;
+      currentCamera = nextCamera;
 
-  await startCamera();
-}
+      await startCamera();
+    }
 
-      
-  function openGallery() {
-   const galleryUrl =
-    'https://script.google.com/macros/s/AKfycbxy88O1sg0RndiNZsyEmrQ-IFzeqljy98huI0R88eBd4CiOlVcqgSBGoaLiwM_Zp4fu/exec?page=gallery';
+    function openGallery() {
+      const galleryUrl =
+        'https://script.google.com/macros/s/AKfycbxy88O1sg0RndiNZsyEmrQ-IFzeqljy98huI0R88eBd4CiOlVcqgSBGoaLiwM_Zp4fu/exec?page=gallery';
 
-    window.open(galleryUrl, '_blank');
-  }
-
+      window.open(galleryUrl, '_blank');
+    }
 
     function capturePhoto() {
-     if (!video.videoWidth || !stream) {
+      if (!video.videoWidth || !stream) {
         setStatus('Tunggu sampai kamera ready.');
         return;
       }
 
-      const canvas = document.createElement('canvas');
-      const maxWidth = 1600;
-      const scale = Math.min(1, maxWidth / video.videoWidth);
+      // Jumlah lebar akhir (termasuk frame) dihadkan ~1600px.
+      const margin = FRAME_ENABLED ? FRAME_MARGIN : 0;
+      const maxPhotoW = Math.floor(1600 / (1 + 2 * margin));
+      const scale = Math.min(1, maxPhotoW / video.videoWidth);
+      const pw = Math.round(video.videoWidth * scale);
+      const ph = Math.round(video.videoHeight * scale);
 
-      canvas.width = Math.round(video.videoWidth * scale);
-      canvas.height = Math.round(video.videoHeight * scale);
-
-      const ctx = canvas.getContext('2d');
-
-      // Lukis video + filter. Balikkan kiri-kanan hanya untuk kamera depan,
-      // supaya gambar yang disimpan sama dengan preview.
-      ctx.save();
+      // 1) Lukis gambar kamera (cermin hanya untuk kamera depan)
+      const photo = document.createElement('canvas');
+      photo.width = pw;
+      photo.height = ph;
+      const pctx = photo.getContext('2d');
+      pctx.save();
       if (isMirrored && MIRROR_SAVED_FRONT_PHOTO) {
-        ctx.translate(canvas.width, 0);
-        ctx.scale(-1, 1);
+        pctx.translate(pw, 0);
+        pctx.scale(-1, 1);
       }
-      ctx.filter = filterSettings[selectedFilter] || 'none';
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      ctx.restore();
+      pctx.drawImage(video, 0, 0, pw, ph);
+      pctx.restore();
 
-      // Border tropika dilukis selepas restore supaya tidak terbalik.
-      if (['aloha', 'bloom'].includes(selectedFilter)) drawTropicalBorder(ctx, canvas.width, canvas.height);
+      // 2) Filter (kiraan piksel, jadi di semua pelayar)
+      if (selectedFilter) applyFilterEffects(pctx, pw, ph, FILTERS[selectedFilter]);
 
-      photoData = canvas.toDataURL('image/jpeg', 0.88);
+      // 3) Frame tropika
+      const out = FRAME_ENABLED ? addTropicalFrame(photo) : photo;
+
+      photoData = out.toDataURL('image/jpeg', 0.85);
 
       preview.src = photoData;
       preview.style.display = 'block';
       video.style.display = 'none';
+      applyLiveEffects();
       captureButton.style.display = 'none';
       retakeButton.style.display = 'block';
       commentSection.style.display = 'block';
@@ -547,6 +807,7 @@ async function switchCamera() {
       photoData = null;
       preview.style.display = 'none';
       video.style.display = 'block';
+      applyLiveEffects();
       captureButton.style.display = 'block';
       retakeButton.style.display = 'none';
       commentSection.style.display = 'none';
@@ -588,6 +849,7 @@ async function switchCamera() {
           retakeButton.style.display = 'none';
           preview.style.display = 'none';
           video.style.display = 'block';
+          applyLiveEffects();
           captureButton.style.display = 'block';
 
           setStatus('Gambar berjaya dihantar! Moleknya komee, boleh mengambil gambar seterusnya.');
@@ -602,6 +864,8 @@ async function switchCamera() {
         stream.getTracks().forEach(track => track.stop());
       }
     });
+
+    buildFilterList();
 
     // Cuba buka kamera apabila halaman dibuka.
     // Jika pelayar memerlukan sentuhan pengguna, tekan Buka Kamera.
