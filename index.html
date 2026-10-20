@@ -348,6 +348,15 @@
 
     let selectedBorder = 'luau'; // null = tiada border
 
+    // Skrin telefon lebih kecil, jadi border dikecilkan supaya ruang kamera lebih luas.
+    // band = lebar jalur border, size = saiz hiasan (1 = saiz PC). Laras di sini.
+    const MOBILE_BORDER_FIT = { band: 0.72, size: 0.8 };
+    function borderFit() {
+      return window.matchMedia('(max-width: 600px)').matches
+        ? MOBILE_BORDER_FIT
+        : { band: 1, size: 1 };
+    }
+
     function drawLeaf(ctx, x, y, angle, len, wid, c1, c2) {
       ctx.save();
       ctx.translate(x, y);
@@ -576,7 +585,8 @@
         return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
       };
       const pick = function (a) { return a[(R() * a.length) | 0]; };
-      const u = W, band = u * (b.band || .17), sc = b.sc || 1, P = 2 * (W + H);
+      const fit = borderFit();
+      const u = W, band = u * (b.band || .17) * fit.band, sc = (b.sc || 1) * fit.size, P = 2 * (W + H);
 
       // Titik di keliling gambar; a = arah ke tengah (darjah, 0 = atas).
       const at = function (s, d) {
